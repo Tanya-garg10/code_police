@@ -10,13 +10,15 @@
  *    merge-conflict risk, and here is a graph you can read at a glance."
  *
  * To keep GitHub API usage bounded we only fetch the contents of files that
- * are plausibly relevant: changed files plus the JS/TS source tree (capped).
+ * are plausibly relevant: changed files plus the analyzable source tree
+ * (JS/TS and Python, capped).
  */
 
 import {
   buildDependencyGraph,
   computePrImpact,
   formatImpactComment,
+  detectSourceLanguage,
   type PrImpactReport,
 } from "./dependency-graph";
 import {
@@ -26,7 +28,6 @@ import {
 } from "./conflict-detector";
 import { fetchRepoTree, fetchFileContent } from "./github";
 
-const JS_TS_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"];
 const MAX_TREE_FILES = 400; // cap to stay within API/time budgets
 const MAX_FILE_BYTES = 200_000;
 
@@ -38,9 +39,9 @@ export interface PrImpactResult {
 }
 
 function isAnalyzableSource(path: string): boolean {
-  if (/^(node_modules|dist|build|\.next|out|coverage)\//.test(path)) return false;
+  if (/^(node_modules|dist|build|\.next|out|coverage|vendor|__pycache__)\//.test(path)) return false;
   if (/\.(min|d)\.(js|ts)$/.test(path)) return false;
-  return JS_TS_EXTENSIONS.some((ext) => path.endsWith(ext));
+  return detectSourceLanguage(path) !== null;
 }
 
 /**
